@@ -4,7 +4,7 @@ import com.backend.flowershop.application.port.in.seller.SubmitSellerOnboardingU
 import com.backend.flowershop.application.port.out.clock.ClockPort;
 import com.backend.flowershop.application.port.out.seller.SellerOnboardingRepository;
 import com.backend.flowershop.application.validator.SellerOnboardingValidator;
-import com.backend.flowershop.domain.error.DomainException;
+import com.backend.flowershop.application.validator.ValidationFailedException;
 import com.backend.flowershop.domain.model.seller.SellerDocument;
 import com.backend.flowershop.domain.model.seller.SellerOnboarding;
 import com.backend.flowershop.domain.model.seller.SellerOnboardingStatus;
@@ -18,7 +18,7 @@ import java.util.List;
 /**
  * 作用：提交 Seller Onboarding（最小闭环）
  * 流程：Validator(=Normalize + Pipeline) -> Save
- * 边界：不写 validate 逻辑
+ * 边界：不写 validate 逻辑（validate 必须在 rule impl）
  */
 @Service
 public class SubmitSellerOnboardingService implements SubmitSellerOnboardingUseCase {
@@ -40,11 +40,10 @@ public class SubmitSellerOnboardingService implements SubmitSellerOnboardingUseC
     @Override
     public SellerOnboarding execute(AuthPrincipal principal, SellerProfile profile, List<SellerDocument> documents) {
         SellerOnboardingValidator.Result r = validator.validateSubmit(principal, profile, documents);
+
         if (!r.validation().valid()) {
-            throw new DomainException(
-                    "VALIDATION_FAILED",
-                    "校验失败：" + r.validation().errors()
-            );
+            // 关键：结构化抛出，交给 GlobalExceptionHandler 输出 field errors JSON
+            throw new ValidationFailedException(r.validation().errors());
         }
 
         Instant now = clock.now();
