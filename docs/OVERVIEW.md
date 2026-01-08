@@ -66,6 +66,3 @@ src/test/java/com/backend/flowershop
 
 - 当前仅包含 `FlowerShopApplicationTests` 的基础启动测试
 
-## 实现与文件映射索引
-
-- 详细的“功能 ➜ 文件组合”索引见：`docs/IMPLEMENTATION_MAP.md`
