@@ -26,6 +26,7 @@ public class MeController {
         TokenClaims claims = new TokenClaims(
                 jwt.getSubject(),
                 resolveUsername(jwt),
+                jwt.getTokenValue(),
                 jwt.getClaimAsString("email"),
                 resolveGroups(jwt)
         );
