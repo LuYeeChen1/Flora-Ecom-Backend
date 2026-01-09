@@ -9,6 +9,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
@@ -18,9 +24,19 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 public class SecurityConfig {
     private final String allowedOrigins;
+    private final String issuerUri;
+    private final String clientId;
+    private final String jwkSetUri;
 
-    public SecurityConfig(@Value("${app.cors.allowed-origins:*}") String allowedOrigins) {
+    public SecurityConfig(
+            @Value("${app.cors.allowed-origins:*}") String allowedOrigins,
+            @Value("${security.jwt.issuer}") String issuerUri,
+            @Value("${security.jwt.client-id}") String clientId,
+            @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String jwkSetUri) {
         this.allowedOrigins = allowedOrigins;
+        this.issuerUri = issuerUri;
+        this.clientId = clientId;
+        this.jwkSetUri = jwkSetUri;
     }
 
     @Bean
@@ -36,6 +52,16 @@ public class SecurityConfig {
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
         return http.build();
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        OAuth2TokenValidator<Jwt> issuerValidator = JwtValidators.createDefaultWithIssuer(issuerUri);
+        OAuth2TokenValidator<Jwt> audienceValidator = new AudienceValidator(clientId);
+        OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(issuerValidator, audienceValidator);
+        decoder.setJwtValidator(validator);
+        return decoder;
     }
 
     @Bean
