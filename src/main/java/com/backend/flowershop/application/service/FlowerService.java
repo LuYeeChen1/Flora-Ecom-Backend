@@ -30,7 +30,7 @@ public class FlowerService {
     // 辅助映射方法
     private FlowerDTOResponse toResponse(Flower flower) {
         return new FlowerDTOResponse(
-                flower.getId(),
+                String.valueOf(flower.getId()),
                 flower.getName(),
                 flower.getDescription(),
                 flower.getPrice(),
