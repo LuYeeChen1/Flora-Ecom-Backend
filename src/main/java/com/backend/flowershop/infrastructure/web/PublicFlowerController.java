@@ -1,8 +1,8 @@
 package com.backend.flowershop.infrastructure.web;
 
+import com.backend.flowershop.application.service.FlowerService;
 import com.backend.flowershop.domain.model.Flower;
-import com.backend.flowershop.infrastructure.persistence.JdbcFlowerRepository;
-import org.springframework.web.bind.annotation.CrossOrigin; // 导入这个
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,14 +13,15 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:5173")
 public class PublicFlowerController {
 
-    private final JdbcFlowerRepository flowerRepository;
+    private final FlowerService flowerService;
 
-    public PublicFlowerController(JdbcFlowerRepository flowerRepository) {
-        this.flowerRepository = flowerRepository;
+    // ✅ 注入 Service
+    public PublicFlowerController(FlowerService flowerService) {
+        this.flowerService = flowerService;
     }
 
     @GetMapping
     public List<Flower> getAllFlowers() {
-        return flowerRepository.findAllPublic();
+        return flowerService.getPublicFlowerCatalog();
     }
 }
