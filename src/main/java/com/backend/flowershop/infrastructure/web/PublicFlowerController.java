@@ -1,11 +1,8 @@
 package com.backend.flowershop.infrastructure.web;
 
+import com.backend.flowershop.application.dto.FlowerDTO; // 导入 DTO
 import com.backend.flowershop.application.service.FlowerService;
-import com.backend.flowershop.domain.model.Flower;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
@@ -15,13 +12,13 @@ public class PublicFlowerController {
 
     private final FlowerService flowerService;
 
-    // ✅ 注入 Service
     public PublicFlowerController(FlowerService flowerService) {
         this.flowerService = flowerService;
     }
 
+    // 返回类型变为 List<FlowerDTO>
     @GetMapping
-    public List<Flower> getAllFlowers() {
+    public List<FlowerDTO> getAllFlowers() {
         return flowerService.getPublicFlowerCatalog();
     }
 }
