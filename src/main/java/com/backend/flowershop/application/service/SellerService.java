@@ -1,7 +1,6 @@
 package com.backend.flowershop.application.service;
 
 import com.backend.flowershop.application.dto.request.SellerApplyDTORequest;
-import com.backend.flowershop.domain.model.SellerProfile;
 import com.backend.flowershop.domain.repository.SellerProfileRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,25 +14,24 @@ public class SellerService {
         this.sellerRepository = sellerRepository;
     }
 
-    /**
-     * 处理卖家申请
-     * @param userId 从 Token 解析出的用户 ID (Cognito sub)
-     * @param request 前端提交的申请数据
-     */
     @Transactional
     public void applyForSeller(String userId, SellerApplyDTORequest request) {
-        // 1. DTO 转 Entity
-        SellerProfile profile = new SellerProfile();
-        profile.setUserId(userId);
-        profile.setRealName(request.getRealName());
-        profile.setIdCardNumber(request.getIdCardNumber());
-        profile.setPhoneNumber(request.getPhoneNumber());
-        profile.setBusinessAddress(request.getBusinessAddress());
+        if ("INDIVIDUAL".equalsIgnoreCase(request.getApplyType())) {
+            // 简单校验
+            if (request.getRealName() == null || request.getNricNumber() == null) {
+                throw new IllegalArgumentException("Real Name and NRIC are required for Individuals");
+            }
+            sellerRepository.saveIndividual(userId, request);
 
-        // 2. 强制设置状态为 "待审核"
-        profile.setStatus("PENDING_REVIEW");
+        } else if ("BUSINESS".equalsIgnoreCase(request.getApplyType())) {
+            // 简单校验
+            if (request.getCompanyName() == null || request.getBrnNumber() == null || request.getTinNumber() == null) {
+                throw new IllegalArgumentException("Company Name, BRN and TIN are required for Business");
+            }
+            sellerRepository.saveBusiness(userId, request);
 
-        // 3. 保存至数据库
-        sellerRepository.save(profile);
+        } else {
+            throw new IllegalArgumentException("Invalid Apply Type. Must be INDIVIDUAL or BUSINESS");
+        }
     }
 }

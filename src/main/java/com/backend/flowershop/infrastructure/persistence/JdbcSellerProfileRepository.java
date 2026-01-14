@@ -1,11 +1,12 @@
 package com.backend.flowershop.infrastructure.persistence;
 
-import com.backend.flowershop.domain.model.SellerProfile;
+import com.backend.flowershop.application.dto.request.SellerApplyDTORequest;
 import com.backend.flowershop.domain.repository.SellerProfileRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -18,51 +19,85 @@ public class JdbcSellerProfileRepository implements SellerProfileRepository {
     }
 
     @Override
-    public void save(SellerProfile profile) {
-        // 核心 SQL：如果存在则更新，不存在则插入
-        // 注意：每次提交都会重置状态为 'PENDING_REVIEW' (需在 Service 层或这里控制)
-        // 这里我们只负责写入数据
+    public void saveIndividual(String userId, SellerApplyDTORequest dto) {
         String sql = """
-            INSERT INTO seller_profiles 
-            (user_id, real_name, id_card_number, phone_number, business_address, status, applied_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            ON DUPLICATE KEY UPDATE
+            INSERT INTO individual_sellers (user_id, real_name, nric_number, phone_number, garden_address, status)
+            VALUES (?, ?, ?, ?, ?, 'PENDING_REVIEW')
+            ON DUPLICATE KEY UPDATE 
                 real_name = VALUES(real_name),
-                id_card_number = VALUES(id_card_number),
+                nric_number = VALUES(nric_number),
                 phone_number = VALUES(phone_number),
-                business_address = VALUES(business_address),
-                status = VALUES(status),
+                garden_address = VALUES(garden_address),
+                status = 'PENDING_REVIEW',
                 updated_at = CURRENT_TIMESTAMP
         """;
-
-        jdbcTemplate.update(sql,
-                profile.getUserId(),
-                profile.getRealName(),
-                profile.getIdCardNumber(),
-                profile.getPhoneNumber(),
-                profile.getBusinessAddress(),
-                profile.getStatus()
-        );
+        jdbcTemplate.update(sql, userId, dto.getRealName(), dto.getNricNumber(), dto.getPhoneNumber(), dto.getAddress());
     }
 
     @Override
-    public Optional<SellerProfile> findByUserId(String userId) {
-        String sql = "SELECT * FROM seller_profiles WHERE user_id = ?";
-        // 使用 Stream 防止 null
-        return jdbcTemplate.query(sql, rowMapper, userId).stream().findFirst();
+    public void saveBusiness(String userId, SellerApplyDTORequest dto) {
+        String sql = """
+            INSERT INTO business_sellers (user_id, company_name, registration_number, tin_number, msic_code, sst_number, phone_number, business_address, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_REVIEW')
+            ON DUPLICATE KEY UPDATE 
+                company_name = VALUES(company_name),
+                registration_number = VALUES(registration_number),
+                tin_number = VALUES(tin_number),
+                msic_code = VALUES(msic_code),
+                sst_number = VALUES(sst_number),
+                phone_number = VALUES(phone_number),
+                business_address = VALUES(business_address),
+                status = 'PENDING_REVIEW',
+                updated_at = CURRENT_TIMESTAMP
+        """;
+        jdbcTemplate.update(sql, userId, dto.getCompanyName(), dto.getBrnNumber(), dto.getTinNumber(), dto.getMsicCode(), dto.getSstNumber(), dto.getPhoneNumber(), dto.getAddress());
     }
 
-    // 结果集映射器
-    private final RowMapper<SellerProfile> rowMapper = (rs, rowNum) -> {
-        SellerProfile sp = new SellerProfile();
-        sp.setUserId(rs.getString("user_id"));
-        sp.setRealName(rs.getString("real_name"));
-        sp.setIdCardNumber(rs.getString("id_card_number"));
-        sp.setPhoneNumber(rs.getString("phone_number"));
-        sp.setBusinessAddress(rs.getString("business_address"));
-        sp.setStatus(rs.getString("status"));
-        // 如果需要时间字段，可以在 Entity 加对应字段并在这里映射
-        // sp.setAppliedAt(rs.getTimestamp("applied_at").toLocalDateTime());
-        return sp;
+    // =========================================================
+    // 👇 如果你想要 "查询" 功能 (SELECT)，就需要加上 RowMapper
+    // =========================================================
+
+    // 1. 个人花艺师的 Mapper
+    private final RowMapper<SellerApplyDTORequest> individualRowMapper = (rs, rowNum) -> {
+        SellerApplyDTORequest dto = new SellerApplyDTORequest();
+        dto.setApplyType("INDIVIDUAL");
+        dto.setRealName(rs.getString("real_name"));
+        dto.setNricNumber(rs.getString("nric_number")); // 注意这里读的是数据库字段 nric_number
+        dto.setPhoneNumber(rs.getString("phone_number"));
+        dto.setAddress(rs.getString("garden_address"));
+        // status 字段通常单独处理或放入另一个 DTO
+        return dto;
     };
+
+    // 2. 企业商户的 Mapper
+    private final RowMapper<SellerApplyDTORequest> businessRowMapper = (rs, rowNum) -> {
+        SellerApplyDTORequest dto = new SellerApplyDTORequest();
+        dto.setApplyType("BUSINESS");
+        dto.setCompanyName(rs.getString("company_name")); // 对应数据库 company_name
+        dto.setBrnNumber(rs.getString("registration_number"));
+        dto.setTinNumber(rs.getString("tin_number"));
+        dto.setMsicCode(rs.getString("msic_code"));
+        dto.setSstNumber(rs.getString("sst_number"));
+        dto.setPhoneNumber(rs.getString("phone_number"));
+        dto.setAddress(rs.getString("business_address"));
+        return dto;
+    };
+
+    /**
+     * 示例：查询某个用户的申请信息 (为了回显或查看状态)
+     * 这时候就必须用到上面的 Mapper 了
+     */
+    public Optional<SellerApplyDTORequest> findApplicationByUserId(String userId) {
+        // 先试着查个人表
+        String indSql = "SELECT * FROM individual_sellers WHERE user_id = ?";
+        List<SellerApplyDTORequest> indResults = jdbcTemplate.query(indSql, individualRowMapper, userId);
+        if (!indResults.isEmpty()) return Optional.of(indResults.get(0));
+
+        // 再试着查企业表
+        String bizSql = "SELECT * FROM business_sellers WHERE user_id = ?";
+        List<SellerApplyDTORequest> bizResults = jdbcTemplate.query(bizSql, businessRowMapper, userId);
+        if (!bizResults.isEmpty()) return Optional.of(bizResults.get(0));
+
+        return Optional.empty();
+    }
 }

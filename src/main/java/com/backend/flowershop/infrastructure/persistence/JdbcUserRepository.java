@@ -19,14 +19,14 @@ public class JdbcUserRepository implements UserRepository {
 
     @Override
     public void save(User user) {
-        // 核心更新：使用 ON DUPLICATE KEY UPDATE 实现“存在即更新，不存在即插入”
-        // 且每次同步时自动刷新 last_login_at
+        // 确保插入/更新时包含 avatar_url
         String sql = """
-            INSERT INTO users (id, email, username, role, is_active, last_login_at) 
-            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT INTO users (id, email, username, avatar_url, role, is_active, last_login_at) 
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON DUPLICATE KEY UPDATE 
                 email = VALUES(email), 
                 username = VALUES(username),
+                avatar_url = VALUES(avatar_url),
                 role = VALUES(role),
                 last_login_at = CURRENT_TIMESTAMP
         """;
@@ -35,21 +35,29 @@ public class JdbcUserRepository implements UserRepository {
                 user.getId(),
                 user.getEmail(),
                 user.getUsername(),
+                user.getAvatarUrl(),
                 user.getRole(),
                 user.getActive()
         );
     }
 
+
     @Override
     public Optional<User> findById(String id) {
-        String sql = "SELECT * FROM users WHERE id = ?";
+        String sql = "SELECT id, email, username, avatar_url, role, is_active FROM users WHERE id = ?";
         return jdbcTemplate.query(sql, userRowMapper, id).stream().findFirst();
     }
 
-    private final RowMapper<User> userRowMapper = (rs, rowNum) -> new User(
-            rs.getString("id"),
-            rs.getString("email"),
-            rs.getString("username"),
-            rs.getString("role")
-    );
+    private final RowMapper<User> userRowMapper = (rs, rowNum) -> {
+        User user = new User(
+                rs.getString("id"),
+                rs.getString("email"),
+                rs.getString("username"),
+                rs.getString("role")
+        );
+        // 🔴 必须手动从 ResultSet 中提取 avatar_url 并设置到对象中
+        user.setAvatarUrl(rs.getString("avatar_url"));
+        user.setActive(rs.getBoolean("is_active"));
+        return user;
+    };
 }
