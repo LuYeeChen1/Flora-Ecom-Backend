@@ -1,5 +1,6 @@
 package com.backend.flowershop.infrastructure.persistence;
 
+import com.backend.flowershop.application.dto.request.FlowerDTORequest;
 import com.backend.flowershop.domain.model.Flower;
 import com.backend.flowershop.domain.repository.FlowerRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -18,8 +19,25 @@ public class JdbcFlowerRepository implements FlowerRepository {
     }
 
     @Override
+    public void save(String sellerId, FlowerDTORequest dto) {
+        String sql = """
+            INSERT INTO flowers (name, description, price, stock, image_url, category, seller_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """;
+
+        jdbcTemplate.update(sql,
+                dto.getName(),
+                dto.getDescription(),
+                dto.getPrice(),
+                dto.getStock(),
+                dto.getImageUrl(), // 这里存的是 S3 的 Key
+                dto.getCategory(),
+                sellerId           // 绑定当前卖家 ID
+        );
+    }
+
+    @Override
     public List<Flower> findAllPublic() {
-        // 显式查询所有需要的列，包括 seller_id
         String sql = "SELECT id, name, description, price, stock, image_url, category, seller_id FROM flowers";
         return jdbcTemplate.query(sql, flowerRowMapper);
     }
@@ -33,10 +51,7 @@ public class JdbcFlowerRepository implements FlowerRepository {
         flower.setStock(rs.getInt("stock"));
         flower.setImageUrl(rs.getString("image_url"));
         flower.setCategory(rs.getString("category"));
-
-        // 🔴 修复：数据库现在强制要求 seller_id，必须映射
         flower.setSellerId(rs.getString("seller_id"));
-
         return flower;
     };
 }
