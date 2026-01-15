@@ -19,4 +19,6 @@ public interface CartRepository {
 
     // 清空购物车（下单后用）
     void clearCart(String userId);
+
+    void deleteAllByUserId(String userId);
 }

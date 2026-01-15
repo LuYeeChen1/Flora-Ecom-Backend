@@ -66,6 +66,12 @@ public class JdbcCartRepository implements CartRepository {
         jdbcTemplate.update(sql, quantity, cartId, userId);
     }
 
+    @Override
+    public void deleteAllByUserId(String userId) {
+        String sql = "DELETE FROM cart_items WHERE user_id = ?";
+        jdbcTemplate.update(sql, userId);
+    }
+
     // --- RowMapper: 将 SQL 结果映射为 Java 对象 ---
     private final RowMapper<CartItem> cartItemRowMapper = (rs, rowNum) -> {
         CartItem item = new CartItem();
