@@ -60,6 +60,12 @@ public class JdbcCartRepository implements CartRepository {
         jdbcTemplate.update(sql, userId);
     }
 
+    @Override
+    public void updateQuantity(Long cartId, String userId, int quantity) {
+        String sql = "UPDATE cart_items SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?";
+        jdbcTemplate.update(sql, quantity, cartId, userId);
+    }
+
     // --- RowMapper: 将 SQL 结果映射为 Java 对象 ---
     private final RowMapper<CartItem> cartItemRowMapper = (rs, rowNum) -> {
         CartItem item = new CartItem();

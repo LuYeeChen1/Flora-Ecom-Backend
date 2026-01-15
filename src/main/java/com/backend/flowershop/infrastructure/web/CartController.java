@@ -77,4 +77,20 @@ public class CartController {
 
         return ResponseEntity.ok(Map.of("message", "Item removed"));
     }
+
+    // 更新数量接口: PATCH /api/cart/{id}
+    @PatchMapping("/{id}")
+    public ResponseEntity<?> updateQuantity(
+            @AuthenticationPrincipal org.springframework.security.oauth2.jwt.Jwt jwt,
+            @PathVariable Long id,
+            @RequestBody Map<String, Integer> body) {
+
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        String userId = jwt.getSubject();
+        Integer quantity = body.get("quantity");
+
+        cartService.updateCartItemQuantity(userId, id, quantity);
+        return ResponseEntity.ok(Map.of("message", "Quantity updated"));
+    }
 }

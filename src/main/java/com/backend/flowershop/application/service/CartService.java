@@ -44,6 +44,15 @@ public class CartService {
         cartRepository.deleteCartItem(cartId, userId);
     }
 
+    public void updateCartItemQuantity(String userId, Long cartId, int quantity) {
+        if (quantity <= 0) {
+            // 如果数量减到0，直接移除商品
+            cartRepository.deleteCartItem(cartId, userId);
+        } else {
+            cartRepository.updateQuantity(cartId, userId, quantity);
+        }
+    }
+
     // --- Mapper Helper ---
     private CartItemDTOResponse mapToDTO(CartItem item) {
         // 拼接图片完整 URL

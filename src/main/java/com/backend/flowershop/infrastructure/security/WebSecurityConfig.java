@@ -63,7 +63,7 @@ public class WebSecurityConfig {
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
 
         // 允许的 HTTP 方法
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH" , "OPTIONS"));
 
         // 允许的 Header (关键是 Authorization，用于带 Token)
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));

@@ -14,6 +14,9 @@ public interface CartRepository {
     // 删除某条记录
     void deleteCartItem(Long cartId, String userId);
 
+    // 添加此方法用于精准更新数量
+    void updateQuantity(Long cartId, String userId, int quantity);
+
     // 清空购物车（下单后用）
     void clearCart(String userId);
 }
