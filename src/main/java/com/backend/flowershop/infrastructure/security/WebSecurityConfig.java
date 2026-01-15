@@ -19,17 +19,27 @@ public class WebSecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // 1. ✅ 新增：启用 CORS (允许前端跨域访问)
+                // 1. ✅ 启用 CORS (允许前端跨域访问)
                 .cors(Customizer.withDefaults())
 
                 // 2. 禁用 CSRF (REST API 不需要，且由 JWT 保证安全)
                 .csrf(csrf -> csrf.disable())
 
-                // 3. 配置路径权限
+                // 3. 配置路径权限 (这是修复 NPE 的关键部分)
                 .authorizeHttpRequests(auth -> auth
-                        // 🔓 允许所有访客访问 /api/public/ 下的接口
+                        // 🔓 公开接口：允许所有访客访问 (首页列表、详情)
                         .requestMatchers("/api/public/**").permitAll()
-                        // 🔒 其他接口 (如 /api/users/me) 必须携带 Cognito Token
+                        // 🔓 认证接口：允许访问登录/注册 (如果您的 AuthController 路径是这个)
+                        .requestMatchers("/api/auth/**").permitAll()
+
+                        // 🛡️ 卖家接口：仅限拥有 SELLER 角色的人访问
+                        .requestMatchers("/api/seller/**").hasRole("SELLER")
+
+                        // 🔥 购物车接口：必须认证 (Authenticated)
+                        // 修复点：强制要求 Token，防止 Controller 拿到 null token
+                        .requestMatchers("/api/cart/**").authenticated()
+
+                        // 🔒 兜底规则：其他所有接口 (如 /api/users/me) 都必须携带 Token
                         .anyRequest().authenticated()
                 )
 

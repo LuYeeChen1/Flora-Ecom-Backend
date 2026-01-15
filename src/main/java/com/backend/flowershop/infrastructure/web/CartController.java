@@ -3,9 +3,12 @@ package com.backend.flowershop.infrastructure.web;
 import com.backend.flowershop.application.dto.request.CartItemDTORequest;
 import com.backend.flowershop.application.dto.response.CartItemDTOResponse;
 import com.backend.flowershop.application.service.CartService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.oauth2.jwt.Jwt; // ✅ 注意这个新 Import
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,6 +18,7 @@ import java.util.Map;
 @RequestMapping("/api/cart")
 public class CartController {
 
+    private static final Logger log = LoggerFactory.getLogger(CartController.class);
     private final CartService cartService;
 
     public CartController(CartService cartService) {
@@ -24,10 +28,20 @@ public class CartController {
     // 1. 添加商品: POST /api/cart
     @PostMapping
     public ResponseEntity<?> addToCart(
-            @AuthenticationPrincipal JwtAuthenticationToken token,
+            @AuthenticationPrincipal Jwt jwt, // ✅ 修复：类型改为 Jwt
             @RequestBody CartItemDTORequest request) {
 
-        String userId = token.getName(); // 获取 Cognito Sub (User ID)
+        // 🛡️ 防御性检查
+        if (jwt == null) {
+            log.warn("Unauthorized attempt to add to cart (Jwt is null)");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "User must be logged in"));
+        }
+
+        // ✅ 从 JWT 中直接获取 Subject (即 Cognito User ID / sub)
+        String userId = jwt.getSubject();
+        log.info("Adding item to cart for user: {}", userId);
+
         cartService.addToCart(userId, request);
 
         return ResponseEntity.ok(Map.of("message", "Item added to cart"));
@@ -35,20 +49,30 @@ public class CartController {
 
     // 2. 查看购物车: GET /api/cart
     @GetMapping
-    public ResponseEntity<List<CartItemDTOResponse>> getMyCart(
-            @AuthenticationPrincipal JwtAuthenticationToken token) {
+    public ResponseEntity<?> getMyCart(
+            @AuthenticationPrincipal Jwt jwt) { // ✅ 修复：类型改为 Jwt
 
-        String userId = token.getName();
-        return ResponseEntity.ok(cartService.getMyCart(userId));
+        if (jwt == null) {
+            log.warn("Unauthorized attempt to view cart");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String userId = jwt.getSubject();
+        List<CartItemDTOResponse> cart = cartService.getMyCart(userId);
+        return ResponseEntity.ok(cart);
     }
 
     // 3. 移除商品: DELETE /api/cart/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<?> removeFromCart(
-            @AuthenticationPrincipal JwtAuthenticationToken token,
+            @AuthenticationPrincipal Jwt jwt, // ✅ 修复：类型改为 Jwt
             @PathVariable Long id) {
 
-        String userId = token.getName();
+        if (jwt == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String userId = jwt.getSubject();
         cartService.removeFromCart(userId, id);
 
         return ResponseEntity.ok(Map.of("message", "Item removed"));
