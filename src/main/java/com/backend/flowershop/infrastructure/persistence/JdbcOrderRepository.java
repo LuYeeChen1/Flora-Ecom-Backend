@@ -73,6 +73,19 @@ public class JdbcOrderRepository implements OrderRepository {
         return order;
     }
 
+    @Override
+    public List<OrderItem> findOrderItemsByUserId(String userId) {
+        // 通过连接 orders 表，一次性查出该用户所有订单的所有商品项
+        String sql = """
+            SELECT oi.* FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            WHERE o.user_id = ?
+            ORDER BY oi.order_id DESC, oi.id ASC
+        """;
+
+        return jdbcTemplate.query(sql, itemRowMapper, userId);
+    }
+
     // RowMappers
     private final RowMapper<Order> orderRowMapper = (rs, rowNum) -> {
         Order order = new Order();

@@ -36,4 +36,7 @@ public interface FlowerRepository {
      * (对应 JdbcFlowerRepository.findDetailById)
      */
     Optional<FlowerDetailDTOResponse> findDetailById(Long id);
+
+    // 减少库存：返回影响行数，用于判断是否扣减成功
+    int reduceStock(Long flowerId, int quantity);
 }

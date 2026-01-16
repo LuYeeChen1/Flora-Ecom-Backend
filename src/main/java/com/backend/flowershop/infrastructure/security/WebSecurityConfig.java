@@ -39,6 +39,8 @@ public class WebSecurityConfig {
                         // 修复点：强制要求 Token，防止 Controller 拿到 null token
                         .requestMatchers("/api/cart/**").authenticated()
 
+                        .requestMatchers("/api/orders/**").authenticated()
+
                         // 🔒 兜底规则：其他所有接口 (如 /api/users/me) 都必须携带 Token
                         .anyRequest().authenticated()
                 )

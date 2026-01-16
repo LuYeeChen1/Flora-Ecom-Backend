@@ -81,6 +81,13 @@ public class JdbcFlowerRepository implements FlowerRepository {
         }, sellerId);
     }
 
+    @Override
+    public int reduceStock(Long flowerId, int quantity) {
+        // 关键：增加 AND stock >= ? 条件，防止库存扣成负数 (数据库层面的原子锁)
+        String sql = "UPDATE flowers SET stock = stock - ? WHERE id = ? AND stock >= ?";
+        return jdbcTemplate.update(sql, quantity, flowerId, quantity);
+    }
+
     // 4. 查询商品详情 + 卖家档案 (详情页)
     public Optional<FlowerDetailDTOResponse> findDetailById(Long flowerId) {
         String sql = """

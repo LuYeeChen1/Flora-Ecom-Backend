@@ -16,4 +16,6 @@ public interface OrderRepository {
 
     // 4. 获取订单详情 (包含订单项)
     Order findById(Long orderId, String userId);
+
+    List<OrderItem> findOrderItemsByUserId(String userId);
 }
