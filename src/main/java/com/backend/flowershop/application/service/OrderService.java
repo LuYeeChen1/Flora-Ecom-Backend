@@ -2,7 +2,7 @@ package com.backend.flowershop.application.service;
 
 import com.backend.flowershop.application.dto.request.CreateOrderRequestDTO;
 import com.backend.flowershop.application.dto.response.CartItemDTOResponse;
-import com.backend.flowershop.domain.enums.OrderStatus; // ✅ 引入
+import com.backend.flowershop.domain.enums.OrderStatus;
 import com.backend.flowershop.domain.model.Order;
 import com.backend.flowershop.domain.model.OrderItem;
 import com.backend.flowershop.domain.repository.CartRepository;
