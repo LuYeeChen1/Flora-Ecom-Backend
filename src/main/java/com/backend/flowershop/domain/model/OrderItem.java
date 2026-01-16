@@ -4,13 +4,15 @@ import java.math.BigDecimal;
 
 public class OrderItem {
     private Long id;
-    private Long orderId;             // 所属订单 ID
-    private Long flowerId;            // 鲜花 ID
-    private String flowerName;        // 下单时的鲜花名称
-    private BigDecimal priceAtPurchase; // 下单时的单价 (快照)
-    private int quantity;             // 数量
+    private Long orderId;
+    private Long flowerId;
+    private String flowerName;
+    private BigDecimal priceAtPurchase;
+    private Integer quantity;
 
-    // Getters and Setters
+    private String imageUrl;
+
+    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -26,6 +28,10 @@ public class OrderItem {
     public BigDecimal getPriceAtPurchase() { return priceAtPurchase; }
     public void setPriceAtPurchase(BigDecimal priceAtPurchase) { this.priceAtPurchase = priceAtPurchase; }
 
-    public int getQuantity() { return quantity; }
-    public void setQuantity(int quantity) { this.quantity = quantity; }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
+
+    // 图片链接 Getter/Setter
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 }
