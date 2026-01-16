@@ -2,6 +2,7 @@ package com.backend.flowershop.infrastructure.web;
 
 import com.backend.flowershop.application.dto.request.CreateOrderRequestDTO;
 import com.backend.flowershop.application.service.OrderService;
+import com.backend.flowershop.domain.enums.OrderStatus; // ✅ 引入
 import com.backend.flowershop.domain.model.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,19 +28,13 @@ public class OrderController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody CreateOrderRequestDTO request) {
 
-        if (jwt == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
         try {
             String userId = jwt.getSubject();
-            // ✅ 获取登录账号的 Email (Cognito Token 中通常包含 "email" 字段)
             String userEmail = jwt.getClaimAsString("email");
-
-            // 如果 Token 里没 email，就 fallback 到 userId (或者抛错)
             if (userEmail == null) userEmail = userId;
 
-            // 将 email 传给 Service
             Long orderId = orderService.checkout(userId, userEmail, request);
 
             return ResponseEntity.ok(Map.of(
@@ -55,5 +50,37 @@ public class OrderController {
     public ResponseEntity<List<Order>> getMyOrders(@AuthenticationPrincipal Jwt jwt) {
         if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         return ResponseEntity.ok(orderService.getUserOrders(jwt.getSubject()));
+    }
+
+    // --- [新增] 状态更新接口 ---
+    @PatchMapping("/{orderId}/status")
+    public ResponseEntity<?> updateStatus(
+            @PathVariable Long orderId,
+            @RequestBody Map<String, String> payload) {
+
+        try {
+            String statusStr = payload.get("status");
+            if (statusStr == null) throw new RuntimeException("Status is required");
+
+            // ✅ 将前端字符串安全转换为枚举
+            OrderStatus newStatus;
+            try {
+                newStatus = OrderStatus.valueOf(statusStr); // 必须匹配 Enum 定义 (SHIPPED, DELIVERED)
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Invalid status value: " + statusStr);
+            }
+
+            orderService.updateOrderStatus(orderId, newStatus);
+
+            return ResponseEntity.ok(Map.of("message", "Status updated to " + newStatus));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{orderId}/cancel-request")
+    public ResponseEntity<?> requestCancel(@PathVariable Long orderId, @AuthenticationPrincipal Jwt jwt) {
+        orderService.requestCancel(orderId, jwt.getSubject());
+        return ResponseEntity.ok(Map.of("message", "Cancellation requested successfully"));
     }
 }

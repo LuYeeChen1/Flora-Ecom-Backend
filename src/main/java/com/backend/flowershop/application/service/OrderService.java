@@ -2,6 +2,7 @@ package com.backend.flowershop.application.service;
 
 import com.backend.flowershop.application.dto.request.CreateOrderRequestDTO;
 import com.backend.flowershop.application.dto.response.CartItemDTOResponse;
+import com.backend.flowershop.domain.enums.OrderStatus; // ✅ 引入
 import com.backend.flowershop.domain.model.Order;
 import com.backend.flowershop.domain.model.OrderItem;
 import com.backend.flowershop.domain.repository.CartRepository;
@@ -36,7 +37,6 @@ public class OrderService {
     }
 
     @Transactional
-    // 签名修改：接收 email
     public Long checkout(String userId, String userEmail, CreateOrderRequestDTO request) {
         List<CartItemDTOResponse> cartItems = cartService.getMyCart(userId);
         if (cartItems.isEmpty()) {
@@ -56,9 +56,10 @@ public class OrderService {
         Order order = new Order();
         order.setUserId(userId);
         order.setTotalPrice(total);
-        order.setStatus("PAID");
 
-        // 设置从 Token 获取的 Email 和用户填写的资料
+        // ✅ [核心变更] 初始状态设为 Enum
+        order.setStatus(OrderStatus.PAID);
+
         order.setReceiverEmail(userEmail);
         order.setReceiverName(request.getReceiverName());
         order.setReceiverPhone(request.getReceiverPhone());
@@ -94,5 +95,54 @@ public class OrderService {
             order.setItems(itemsByOrderId.getOrDefault(order.getId(), new ArrayList<>()));
         }
         return orders;
+    }
+
+    // --- 状态流转逻辑 ---
+
+    @Transactional
+    // ✅ [核心变更] 参数接收 OrderStatus Enum
+    public void updateOrderStatus(Long orderId, OrderStatus newStatus) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+        // 校验状态流转 (Enum 比较)
+        validateStateTransition(order.getStatus(), newStatus);
+
+        // 更新状态
+        orderRepository.updateStatus(orderId, newStatus);
+    }
+
+    private void validateStateTransition(OrderStatus current, OrderStatus next) {
+        // 允许: PAID -> SHIPPED
+        if (current == OrderStatus.PAID && next == OrderStatus.SHIPPED) return;
+
+        // 允许: SHIPPED -> DELIVERED
+        if (current == OrderStatus.SHIPPED && next == OrderStatus.DELIVERED) return;
+
+        // 幂等性 (重复点没关系)
+        if (current == next) return;
+
+        throw new RuntimeException("Invalid status transition from " + current + " to " + next);
+    }
+
+    @Transactional
+    public void requestCancel(Long orderId, String userId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        // 安全检查: 只能取消自己的订单
+        if (!order.getUserId().equals(userId)) {
+            throw new RuntimeException("Unauthorized access to order");
+        }
+
+        // 状态机检查: 只有 PAID 状态可以申请取消
+        if (order.getStatus() != OrderStatus.PAID) {
+            throw new RuntimeException("Cannot cancel order in state: " + order.getStatus());
+        }
+
+        // 更新状态为 "申请中"
+        orderRepository.updateStatus(orderId, OrderStatus.CANCELLATION_REQUESTED);
+
+        // 可选: 发送通知给卖家 (TODO: NotificationService)
     }
 }
