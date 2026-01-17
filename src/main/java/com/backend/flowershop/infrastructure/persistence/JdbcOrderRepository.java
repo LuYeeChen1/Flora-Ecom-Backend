@@ -138,6 +138,53 @@ public class JdbcOrderRepository implements OrderRepository {
     }
 
     @Override
+    public Optional<SellerOrderDTOResponse> findOrderByIdAndSellerId(Long orderId, String sellerId) {
+        // 1. 校验该订单是否包含该卖家的商品
+        String sqlOrder = """
+            SELECT DISTINCT o.id, o.created_at, o.receiver_name, o.receiver_phone, o.receiver_email, o.shipping_address, o.total_price, o.status
+            FROM orders o
+            JOIN order_items oi ON o.id = oi.order_id
+            JOIN flowers f ON oi.flower_id = f.id
+            WHERE o.id = ? AND f.seller_id = ?
+        """;
+
+        return jdbcTemplate.query(sqlOrder, (rs, rowNum) -> {
+            Long oId = rs.getLong("id");
+
+            // 2. 查询该订单下属于该卖家的具体商品
+            String sqlItems = """
+                SELECT oi.flower_name, oi.quantity, oi.price_at_purchase, f.image_url
+                FROM order_items oi
+                JOIN flowers f ON oi.flower_id = f.id
+                WHERE oi.order_id = ? AND f.seller_id = ?
+            """;
+
+            List<SellerOrderDTOResponse.SellerOrderItemDTO> items = jdbcTemplate.query(sqlItems, (rs2, rn2) -> {
+                String rawKey = rs2.getString("image_url");
+                String fullUrl = (rawKey != null && !rawKey.startsWith("http")) ? s3BaseUrl + rawKey : rawKey;
+                return new SellerOrderDTOResponse.SellerOrderItemDTO(
+                        rs2.getString("flower_name"),
+                        rs2.getInt("quantity"),
+                        rs2.getBigDecimal("price_at_purchase"),
+                        fullUrl
+                );
+            }, oId, sellerId);
+
+            return new SellerOrderDTOResponse(
+                    oId,
+                    rs.getString("receiver_name"),
+                    rs.getString("receiver_phone"),
+                    rs.getString("receiver_email"),
+                    rs.getString("shipping_address"),
+                    rs.getBigDecimal("total_price"),
+                    rs.getString("status"),
+                    rs.getTimestamp("created_at").toLocalDateTime(),
+                    items
+            );
+        }, orderId, sellerId).stream().findFirst();
+    }
+
+    @Override
     public List<SellerOrderDTOResponse> findOrdersBySellerId(String sellerId) {
         String sqlIds = """
             SELECT DISTINCT o.id, o.created_at

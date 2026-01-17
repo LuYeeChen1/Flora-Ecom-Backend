@@ -73,4 +73,9 @@ public class SellerOrderService {
             flowerRepository.restoreStock(item.getFlowerId(), item.getQuantity());
         }
     }
+
+    public SellerOrderDTOResponse getOrderDetails(Long orderId, String sellerId) {
+        return orderRepository.findOrderByIdAndSellerId(orderId, sellerId)
+                .orElseThrow(() -> new RuntimeException("Order not found or you do not have permission to view it."));
+    }
 }

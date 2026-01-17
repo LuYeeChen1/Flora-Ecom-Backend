@@ -20,13 +20,29 @@ public class SellerOrderController {
         this.sellerOrderService = sellerOrderService;
     }
 
+    /**
+     * 获取卖家的所有订单列表
+     */
     @GetMapping
     public ResponseEntity<List<SellerOrderDTOResponse>> getOrders(@AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(sellerOrderService.getIncomingOrders(jwt.getSubject()));
     }
 
-    // ✅ 修复：路径简化为 /{orderId}/ship
-    // 最终 URL: PATCH /api/seller/orders/{orderId}/ship
+    /**
+     * ✅ [新增] 获取单个订单详情
+     * 用于前端点击 "View Detail" 时调用
+     */
+    @GetMapping("/{orderId}")
+    public ResponseEntity<SellerOrderDTOResponse> getOrderDetails(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal Jwt jwt) {
+        // 调用 Service 层的 getOrderDetails 方法 (请确保 Service 层已更新)
+        return ResponseEntity.ok(sellerOrderService.getOrderDetails(orderId, jwt.getSubject()));
+    }
+
+    /**
+     * 发货操作
+     */
     @PatchMapping("/{orderId}/ship")
     public ResponseEntity<?> shipOrder(
             @PathVariable Long orderId,
@@ -38,8 +54,9 @@ public class SellerOrderController {
         return ResponseEntity.ok().build();
     }
 
-    // 修复：路径简化为 /{orderId}/audit-cancel
-    // 最终 URL: POST /api/seller/orders/{orderId}/audit-cancel
+    /**
+     * 审核取消申请 (同意/拒绝)
+     */
     @PostMapping("/{orderId}/audit-cancel")
     public ResponseEntity<?> auditCancel(
             @PathVariable Long orderId,
@@ -50,7 +67,9 @@ public class SellerOrderController {
         return ResponseEntity.ok(Map.of("message", "Audit processed"));
     }
 
-    // 修复：路径简化为 /{orderId}/force-cancel
+    /**
+     * 强制取消订单
+     */
     @PostMapping("/{orderId}/force-cancel")
     public ResponseEntity<?> forceCancel(@PathVariable Long orderId, @AuthenticationPrincipal Jwt jwt) {
         sellerOrderService.forceCancel(orderId, jwt.getSubject());
