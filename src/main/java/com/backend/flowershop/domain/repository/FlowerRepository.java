@@ -22,4 +22,6 @@ public interface FlowerRepository {
     int reduceStock(Long flowerId, int quantity);
 
     void delete(Long id);
+
+    void restoreStock(Long flowerId, int quantity);
 }

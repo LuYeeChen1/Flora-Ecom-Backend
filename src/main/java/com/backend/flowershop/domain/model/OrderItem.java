@@ -1,5 +1,7 @@
 package com.backend.flowershop.domain.model;
 
+import com.backend.flowershop.domain.enums.OrderStatus; // 引入枚举
+
 import java.math.BigDecimal;
 
 public class OrderItem {
@@ -9,10 +11,13 @@ public class OrderItem {
     private String flowerName;
     private BigDecimal priceAtPurchase;
     private Integer quantity;
-
     private String imageUrl;
 
-    // Getters & Setters
+    // 状态字段 (用于混合订单管理，标记该商品是否已发货)
+    private OrderStatus status;
+
+    // --- Getters & Setters ---
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -31,7 +36,10 @@ public class OrderItem {
     public Integer getQuantity() { return quantity; }
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
 
-    // 图片链接 Getter/Setter
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    //Status 的 Getter/Setter
+    public OrderStatus getStatus() { return status; }
+    public void setStatus(OrderStatus status) { this.status = status; }
 }

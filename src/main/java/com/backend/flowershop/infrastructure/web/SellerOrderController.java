@@ -25,33 +25,33 @@ public class SellerOrderController {
         return ResponseEntity.ok(sellerOrderService.getIncomingOrders(jwt.getSubject()));
     }
 
-    @PatchMapping("/orders/{orderId}/ship")
+    // ✅ 修复：路径简化为 /{orderId}/ship
+    // 最终 URL: PATCH /api/seller/orders/{orderId}/ship
+    @PatchMapping("/{orderId}/ship")
     public ResponseEntity<?> shipOrder(
             @PathVariable Long orderId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        // 从 Token 获取 Seller ID
         String sellerId = jwt.getSubject();
-
-        // 调用更新后的服务
         sellerOrderService.shipOrder(orderId, sellerId);
 
         return ResponseEntity.ok().build();
     }
 
-    // 审核取消申请
-    @PostMapping("/orders/{orderId}/audit-cancel")
+    // 修复：路径简化为 /{orderId}/audit-cancel
+    // 最终 URL: POST /api/seller/orders/{orderId}/audit-cancel
+    @PostMapping("/{orderId}/audit-cancel")
     public ResponseEntity<?> auditCancel(
             @PathVariable Long orderId,
-            @RequestBody Map<String, Boolean> body, // { "approved": true }
+            @RequestBody Map<String, Boolean> body, // Expects: { "approved": true }
             @AuthenticationPrincipal Jwt jwt) {
 
         sellerOrderService.auditCancellation(orderId, jwt.getSubject(), body.get("approved"));
         return ResponseEntity.ok(Map.of("message", "Audit processed"));
     }
 
-    // 强制取消
-    @PostMapping("/orders/{orderId}/force-cancel")
+    // 修复：路径简化为 /{orderId}/force-cancel
+    @PostMapping("/{orderId}/force-cancel")
     public ResponseEntity<?> forceCancel(@PathVariable Long orderId, @AuthenticationPrincipal Jwt jwt) {
         sellerOrderService.forceCancel(orderId, jwt.getSubject());
         return ResponseEntity.ok(Map.of("message", "Order force cancelled"));

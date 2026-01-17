@@ -1,7 +1,7 @@
 package com.backend.flowershop.infrastructure.persistence;
 
 import com.backend.flowershop.application.dto.response.SellerOrderDTOResponse;
-import com.backend.flowershop.domain.enums.OrderStatus; // ✅ 引入
+import com.backend.flowershop.domain.enums.OrderStatus;
 import com.backend.flowershop.domain.model.Order;
 import com.backend.flowershop.domain.model.OrderItem;
 import com.backend.flowershop.domain.repository.OrderRepository;
@@ -29,13 +29,13 @@ public class JdbcOrderRepository implements OrderRepository {
     public Long saveOrder(Order order) {
         String sql = """
             INSERT INTO orders 
-            (user_id, total_price, status, shipping_address, receiver_name, receiver_phone, receiver_email) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (user_id, total_price, status, shipping_address, receiver_name, receiver_phone, receiver_email, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """;
         jdbcTemplate.update(sql,
                 order.getUserId(),
                 order.getTotalPrice(),
-                order.getStatus().name(), // ✅ Enum -> String
+                order.getStatus().name(),
                 order.getShippingAddress(),
                 order.getReceiverName(),
                 order.getReceiverPhone(),
@@ -46,9 +46,13 @@ public class JdbcOrderRepository implements OrderRepository {
 
     @Override
     public void saveOrderItems(List<OrderItem> items) {
-        String sql = "INSERT INTO order_items (order_id, flower_id, flower_name, price_at_purchase, quantity) VALUES (?, ?, ?, ?, ?)";
+        // ✅ 确保这里包含 status 字段的插入
+        String sql = "INSERT INTO order_items (order_id, flower_id, flower_name, price_at_purchase, quantity, status) VALUES (?, ?, ?, ?, ?, ?)";
+
         for (OrderItem item : items) {
-            jdbcTemplate.update(sql, item.getOrderId(), item.getFlowerId(), item.getFlowerName(), item.getPriceAtPurchase(), item.getQuantity());
+            // 默认子项状态跟随订单初始状态 (PAID)
+            String status = OrderStatus.PAID.name();
+            jdbcTemplate.update(sql, item.getOrderId(), item.getFlowerId(), item.getFlowerName(), item.getPriceAtPurchase(), item.getQuantity(), status);
         }
     }
 
@@ -86,33 +90,51 @@ public class JdbcOrderRepository implements OrderRepository {
     @Override
     public void updateStatus(Long orderId, OrderStatus status) {
         String sql = "UPDATE orders SET status = ? WHERE id = ?";
-        // ✅ Enum -> String
         jdbcTemplate.update(sql, status.name(), orderId);
     }
 
     @Override
     public void updateItemsStatusBySeller(Long orderId, String sellerId, OrderStatus status) {
-        // 联表查询：只更新 order_items 中 flower_id 属于该 sellerId 的行
         String sql = """
-        UPDATE order_items oi
-        JOIN flowers f ON oi.flower_id = f.id
-        SET oi.status = ?
-        WHERE oi.order_id = ? AND f.seller_id = ?
-    """;
+            UPDATE order_items oi
+            JOIN flowers f ON oi.flower_id = f.id
+            SET oi.status = ?
+            WHERE oi.order_id = ? AND f.seller_id = ?
+        """;
         jdbcTemplate.update(sql, status.name(), orderId, sellerId);
     }
 
     @Override
     public boolean isOrderFullyShipped(Long orderId) {
-        // 统计该订单下，状态 不是 SHIPPED 且 不是 DELIVERED 的商品数量
-        // 如果数量为 0，说明全部发货了
         String sql = """
-        SELECT COUNT(*) FROM order_items 
-        WHERE order_id = ? 
-        AND status NOT IN ('SHIPPED', 'DELIVERED')
-    """;
+            SELECT COUNT(*) FROM order_items 
+            WHERE order_id = ? 
+            AND status NOT IN ('SHIPPED', 'DELIVERED')
+        """;
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, orderId);
         return count != null && count == 0;
+    }
+
+    @Override
+    public List<OrderItem> findOrderItemsByOrderIdAndSellerId(Long orderId, String sellerId) {
+        String sql = """
+            SELECT oi.*, f.image_url 
+            FROM order_items oi
+            JOIN flowers f ON oi.flower_id = f.id
+            WHERE oi.order_id = ? AND f.seller_id = ?
+        """;
+        return jdbcTemplate.query(sql, orderItemRowMapper, orderId, sellerId);
+    }
+
+    @Override
+    public List<OrderItem> findOrderItemsByOrderId(Long orderId) {
+        String sql = """
+            SELECT oi.*, f.image_url 
+            FROM order_items oi
+            LEFT JOIN flowers f ON oi.flower_id = f.id
+            WHERE oi.order_id = ?
+        """;
+        return jdbcTemplate.query(sql, orderItemRowMapper, orderId);
     }
 
     @Override
@@ -157,7 +179,7 @@ public class JdbcOrderRepository implements OrderRepository {
                         rs.getString("receiver_email"),
                         rs.getString("shipping_address"),
                         rs.getBigDecimal("total_price"),
-                        rs.getString("status"), // DTO 依然保持 String 传递给前端，或者您也可以改为 Enum
+                        rs.getString("status"),
                         rs.getTimestamp("created_at").toLocalDateTime(),
                         items
                 );
@@ -165,21 +187,18 @@ public class JdbcOrderRepository implements OrderRepository {
         }).toList();
     }
 
-    // --- Mappers ---
-
     private final RowMapper<Order> orderRowMapper = (rs, rowNum) -> {
         Order order = new Order();
         order.setId(rs.getLong("id"));
         order.setUserId(rs.getString("user_id"));
         order.setTotalPrice(rs.getBigDecimal("total_price"));
-
         try {
-            order.setStatus(OrderStatus.valueOf(rs.getString("status")));
-        } catch (IllegalArgumentException | NullPointerException e) {
-            // 如果数据库有脏数据，降级处理或抛出异常
+            String statusStr = rs.getString("status");
+            if (statusStr != null) order.setStatus(OrderStatus.valueOf(statusStr));
+            else order.setStatus(OrderStatus.PENDING_PAYMENT);
+        } catch (IllegalArgumentException e) {
             order.setStatus(OrderStatus.PENDING_PAYMENT);
         }
-
         order.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
         order.setShippingAddress(rs.getString("shipping_address"));
         order.setReceiverName(rs.getString("receiver_name"));
@@ -196,6 +215,15 @@ public class JdbcOrderRepository implements OrderRepository {
         item.setFlowerName(rs.getString("flower_name"));
         item.setPriceAtPurchase(rs.getBigDecimal("price_at_purchase"));
         item.setQuantity(rs.getInt("quantity"));
+
+        // 现在 setStatus 方法存在了，这里不会报错了
+        try {
+            String statusStr = rs.getString("status");
+            if (statusStr != null) item.setStatus(OrderStatus.valueOf(statusStr));
+        } catch (Exception e) {
+            // 忽略转换错误，保持默认
+        }
+
         String rawKey = rs.getString("image_url");
         if (rawKey != null) {
             item.setImageUrl(rawKey.startsWith("http") ? rawKey : s3BaseUrl + rawKey);
