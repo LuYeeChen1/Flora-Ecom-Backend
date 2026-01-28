@@ -46,12 +46,12 @@ public class WebSecurityConfig {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 🔥 核心修復：使用 Pattern 匹配所有 Vercel 子域名
+        // 🔥 這裡改用 AllowedOriginPatterns，允許所有 Vercel 網址
         configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:5173",
                 "https://flora-shops.com",
                 "https://api.flora-shops.com",
-                "https://*.vercel.app"  // 👈 允許所有 Vercel 生成的網址
+                "https://*.vercel.app"
         ));
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
