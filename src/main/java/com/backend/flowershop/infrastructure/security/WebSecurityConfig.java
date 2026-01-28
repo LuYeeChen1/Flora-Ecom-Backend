@@ -22,16 +22,9 @@ public class WebSecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // 1. 公開接口
                         .requestMatchers("/api/public/**", "/api/auth/**").permitAll()
-
-                        // 2. 賣家申請相關 (允許普通用戶申請)
                         .requestMatchers("/api/seller/apply", "/api/seller/status").hasAnyRole("CUSTOMER", "SELLER")
-
-                        // 3. 賣家專屬接口
                         .requestMatchers("/api/seller/**").hasRole("SELLER")
-
-                        // 4. 其他認證接口
                         .requestMatchers("/api/cart/**", "/api/orders/**").authenticated()
                         .anyRequest().authenticated()
                 )
@@ -53,18 +46,18 @@ public class WebSecurityConfig {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 🔥 核心修復：加入你截圖中顯示的所有來源網址
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173", // 本機開發
-                "https://flora-shops.com", // 正式域名
-                "https://api.flora-shops.com", // API 域名
-                "https://flora-ecom-frontend-dldfuvqmi-luyeechen1s-projects.vercel.app" // Vercel 預覽網址
+        // 🔥 核心修復：使用 Pattern 匹配所有 Vercel 子域名
+        configuration.setAllowedOriginPatterns(List.of(
+                "http://localhost:5173",
+                "https://flora-shops.com",
+                "https://api.flora-shops.com",
+                "https://*.vercel.app"  // 👈 允許所有 Vercel 生成的網址
         ));
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept"));
         configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L); // 快取預檢請求一小時
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
